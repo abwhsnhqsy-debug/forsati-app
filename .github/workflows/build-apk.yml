@@ -18,8 +18,24 @@ jobs:
           cache: npm
           cache-dependency-path: package.json
 
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
       - name: Install dependencies
-        run: npm install
+        run: npm install --no-audit --no-fund
+
+      - name: Check environment
+        run: |
+          node -v
+          npm -v
+          java -version
+          npx cap --version
 
       - name: Add Android platform
         run: npx cap add android
@@ -27,12 +43,16 @@ jobs:
       - name: Sync Capacitor
         run: npx cap sync android
 
+      - name: Make Gradle executable
+        run: chmod +x android/gradlew
+
       - name: Build debug APK
         working-directory: android
-        run: ./gradlew assembleDebug --no-daemon
+        run: ./gradlew assembleDebug --no-daemon --stacktrace
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: forsati-debug-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
