@@ -1,0 +1,8 @@
+{
+  "name":"forsati-app",
+  "version":"1.0.0",
+  "private":true,
+  "scripts":{"build":"echo Web app ready in www/","android":"npx cap sync android"},
+  "dependencies":{"@capacitor/core":"latest","@capacitor/android":"latest"},
+  "devDependencies":{"@capacitor/cli":"latest"}
+}

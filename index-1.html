@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>فرصتي</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:Arial,Tahoma,sans-serif;background:#eef5fc;color:#102a43}
+.app{max-width:430px;min-height:100vh;margin:auto;background:#fff;position:relative;box-shadow:0 0 30px #0001}
+header{height:68px;padding:12px 18px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #e6eef7;position:sticky;top:0;background:#fff;z-index:5}
+.logo{display:flex;align-items:center;gap:9px;font-weight:800;font-size:24px;color:#0758b5}.logoIcon{width:40px;height:40px;border-radius:12px;background:#0758b5;color:white;display:grid;place-items:center;font-size:22px}
+.subscribe{background:#eaf4ff;color:#0758b5;border:1px solid #b9dbff;border-radius:18px;padding:8px 12px;font-weight:700;font-size:12px}
+main{padding:16px 16px 86px}.screen{display:none}.screen.active{display:block}
+.search{background:#f3f7fb;border:1px solid #e1ebf5;border-radius:14px;padding:13px;color:#78909c;margin-bottom:15px}
+.banner{background:linear-gradient(135deg,#0758b5,#1689ef);color:#fff;border-radius:18px;padding:18px;margin-bottom:18px}
+.banner h2{margin:0 0 7px}.banner p{margin:0;opacity:.9;font-size:13px}
+.chips{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:18px}.chip{background:#f3f8fd;border-radius:12px;padding:12px 5px;text-align:center;font-size:12px}
+.job{border:1px solid #e3edf6;border-radius:16px;padding:14px;margin:10px 0;background:#fff}.job h3{margin:0 0 8px;font-size:16px}.muted{color:#718096;font-size:12px}.job .row{display:flex;justify-content:space-between;gap:8px;margin-top:12px}.btn{border:0;background:#0878e8;color:#fff;border-radius:12px;padding:11px 16px;font-weight:700;cursor:pointer}.btn.secondary{background:#edf5fc;color:#0758b5}.detail{line-height:1.8}.detail h2{margin-top:0}.field{background:#f7fafc;border-radius:12px;padding:13px;margin:9px 0;display:flex;justify-content:space-between}
+.profile{text-align:center}.avatar{width:82px;height:82px;border-radius:50%;background:#dceeff;color:#0758b5;display:grid;place-items:center;font-size:38px;margin:10px auto}
+.notice{background:#eef8ee;border:1px solid #cce8cc;color:#286b2b;padding:13px;border-radius:12px;margin-bottom:15px}
+nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:min(430px,100%);height:70px;background:#fff;border-top:1px solid #e3edf6;display:flex;justify-content:space-around;align-items:center;z-index:8}nav button{background:none;border:0;color:#708090;font-weight:700;font-size:12px}nav button.active{color:#0878e8}
+.modal{position:fixed;inset:0;background:#0007;display:none;align-items:flex-end;z-index:20}.modal.show{display:flex}.sheet{background:#fff;width:min(430px,100%);margin:auto;border-radius:22px 22px 0 0;padding:22px}.price{font-size:34px;color:#0758b5;font-weight:800}
+</style>
+</head>
+<body>
+<div class="app">
+<header><div class="logo"><span class="logoIcon">💼</span> فرصتي</div><button class="subscribe" onclick="openSub()">اشتراك</button></header>
+
+<main>
+<section id="home" class="screen active">
+<div class="search">🔎 ابحث عن وظيفة...</div>
+<div class="chips"><div class="chip">👷 بناء وإنشاءات</div><div class="chip">❄️ تكييف وتبريد</div><div class="chip">🚚 سائقون</div></div>
+<div class="banner"><h2>فرص جديدة بانتظارك</h2><p>سجّل الآن وابدأ رحلتك المهنية نحو فرصة أفضل.</p></div>
+<h3>أحدث الوظائف</h3>
+<div class="job"><h3>مطلوب عمال بناء</h3><div class="muted">شركة البناء الحديثة • عمّان</div><div class="row"><span class="muted">دوام كامل</span><button class="btn" onclick="show('details')">التفاصيل</button></div></div>
+<div class="job"><h3>فني تكييف وتبريد</h3><div class="muted">شركة الخدمات الفنية • عمّان</div><div class="row"><span class="muted">خبرة سنة</span><button class="btn" onclick="show('details')">التفاصيل</button></div></div>
+<div class="job"><h3>مطلوب سائقين</h3><div class="muted">شركة النقل السريع • الزرقاء</div><div class="row"><span class="muted">دوام كامل</span><button class="btn" onclick="show('details')">التفاصيل</button></div></div>
+</section>
+
+<section id="details" class="screen">
+<button class="btn secondary" onclick="show('home')">← رجوع</button>
+<div class="job detail"><h2>مطلوب عمال بناء</h2><div class="muted">شركة البناء الحديثة • عمّان</div>
+<h3>وصف الوظيفة</h3><p>نبحث عن عمال للعمل في مشاريع الإنشاءات السكنية والتجارية، مع الالتزام بالمواعيد والسلامة في العمل.</p>
+<h3>المتطلبات</h3><p>• خبرة في مجال البناء<br>• القدرة على العمل ضمن فريق<br>• الالتزام بالمواعيد</p>
+<div class="field"><span>الراتب</span><b>حسب الخبرة</b></div><div class="field"><span>نوع الدوام</span><b>كامل</b></div>
+<button class="btn" style="width:100%;margin-top:12px" onclick="apply()">📨 تقديم الآن</button></div>
+</section>
+
+<section id="jobs" class="screen"><h2>وظائفي</h2><div id="applicationBox" class="notice" style="display:none">تم بعث الـ CV بنجاح ✅<br><small>سيصل إلى الشركة خلال يومين.</small></div><div class="job"><h3>مطلوب عمال بناء</h3><div class="muted">حالة الطلب: قيد المراجعة</div></div></section>
+
+<section id="profile" class="screen"><div class="profile"><div class="avatar">👤</div><h2>قصي أبو حسنة</h2><div class="muted">باحث عن عمل</div></div><div class="job"><div class="field">السيرة الذاتية (CV) <b>›</b></div><div class="field">الوظائف المفضلة <b>›</b></div><div class="field">الإشعارات <b>›</b></div><div class="field">الإعدادات <b>›</b></div></div></section>
+</main>
+
+<nav><button id="nHome" class="active" onclick="show('home')">⌂<br>الرئيسية</button><button id="nJobs" onclick="show('jobs')">▣<br>وظائفي</button><button id="nProfile" onclick="show('profile')">●<br>حسابي</button></nav>
+
+<div id="modal" class="modal" onclick="if(event.target.id==='modal')closeSub()"><div class="sheet"><h2>اشترك في فرصتي</h2><p>إذا بدك الـ CV يوصل للشركة بسرعة، فعّل الاشتراك.</p><div class="price">1 دينار</div><p class="muted">اشتراك سريع لإرسال السيرة الذاتية بشكل أسرع.</p><button class="btn" style="width:100%" onclick="alert('تم اختيار الاشتراك التجريبي ✅');closeSub()">اشترك الآن</button><button class="btn secondary" style="width:100%;margin-top:8px" onclick="closeSub()">إلغاء</button></div></div>
+</div>
+<script>
+function show(id){document.querySelectorAll('.screen').forEach(x=>x.classList.remove('active'));document.getElementById(id).classList.add('active');document.querySelectorAll('nav button').forEach(x=>x.classList.remove('active'));if(id==='home')nHome.classList.add('active');if(id==='jobs')nJobs.classList.add('active');if(id==='profile')nProfile.classList.add('active');window.scrollTo(0,0)}
+function apply(){document.getElementById('applicationBox').style.display='block';show('jobs')}
+function openSub(){modal.classList.add('show')}function closeSub(){modal.classList.remove('show')}
+</script>
+</body></html>
