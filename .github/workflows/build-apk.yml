@@ -1,4 +1,4 @@
-name: Build Forsati Release APK
+name: Forsati Release AAB
 
 on:
   workflow_dispatch:
@@ -8,7 +8,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+      - name: Checkout original app
         uses: actions/checkout@v4
 
       - name: Setup Node
@@ -29,32 +29,145 @@ jobs:
       - name: Install dependencies
         run: npm install --no-audit --no-fund
 
-      - name: Prepare web assets
+      - name: Prepare original web app
         run: |
+          test -f index.html
+          rm -rf www
           mkdir -p www
           cp index.html www/index.html
 
-      - name: Add Android platform
-        run: npx cap add android
+      - name: Prepare Capacitor Android
+        run: |
+          if [ ! -d "android" ]; then
+            npx cap add android
+          fi
 
-      - name: Sync Capacitor
-        run: npx cap sync android
+          npx cap sync android
+
+      - name: Verify Application ID
+        run: |
+          grep -R "com.forsati.app" android/app/build.gradle android/gradle.properties android/variables.gradle 2>/dev/null || true
+
+      - name: Create release keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.FORSATI_KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "ERROR: FORSATI_KEYSTORE_BASE64 is missing."
+            exit 1
+          fi
+
+          echo "$KEYSTORE_BASE64" | base64 --decode > android/forsati-release-key.jks
+
+          if [ ! -s android/forsati-release-key.jks ]; then
+            echo "ERROR: Keystore was not created."
+            exit 1
+          fi
+
+      - name: Create keystore properties
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.FORSATI_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.FORSATI_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.FORSATI_KEY_PASSWORD }}
+        run: |
+          if [ -z "$KEYSTORE_PASSWORD" ]; then
+            echo "ERROR: FORSATI_KEYSTORE_PASSWORD is missing."
+            exit 1
+          fi
+
+          if [ -z "$KEY_ALIAS" ]; then
+            echo "ERROR: FORSATI_KEY_ALIAS is missing."
+            exit 1
+          fi
+
+          if [ -z "$KEY_PASSWORD" ]; then
+            echo "ERROR: FORSATI_KEY_PASSWORD is missing."
+            exit 1
+          fi
+
+          cat > android/keystore.properties <<EOF
+          storeFile=forsati-release-key.jks
+          storePassword=$KEYSTORE_PASSWORD
+          keyAlias=$KEY_ALIAS
+          keyPassword=$KEY_PASSWORD
+          EOF
+
+      - name: Configure release signing
+        working-directory: android
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("app/build.gradle")
+          text = path.read_text()
+
+          if "signingConfigs" not in text:
+              signing_block = r'''
+          signingConfigs {
+              release {
+                  def keystorePropertiesFile = rootProject.file("keystore.properties")
+                  def keystoreProperties = new Properties()
+
+                  if (keystorePropertiesFile.exists()) {
+                      keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+                  }
+
+                  storeFile file(keystoreProperties["storeFile"])
+                  storePassword keystoreProperties["storePassword"]
+                  keyAlias keystoreProperties["keyAlias"]
+                  keyPassword keystoreProperties["keyPassword"]
+              }
+          }
+
+          '''
+
+              text = text.replace(
+                  "android {",
+                  "android {\n" + signing_block,
+                  1
+              )
+
+          if "signingConfig signingConfigs.release" not in text:
+              text = text.replace(
+                  "buildTypes {",
+                  """buildTypes {
+              release {
+                  signingConfig signingConfigs.release
+              }
+              """,
+                  1
+              )
+
+          path.write_text(text)
+          PY
 
       - name: Make Gradle executable
         run: chmod +x android/gradlew
 
-      - name: Build Release APK
+      - name: Build Google Play AAB
         working-directory: android
-        run: ./gradlew assembleRelease --no-daemon
-
-      - name: Find APK
         run: |
-          echo "Searching for generated APK files..."
-          find android/app/build/outputs/apk -type f -name "*.apk" -print
+          ./gradlew bundleRelease --no-daemon
 
-      - name: Upload Release APK
+      - name: Verify AAB
+        run: |
+          echo "Searching for generated AAB..."
+
+          AAB=$(find android/app/build/outputs/bundle -type f -name "*.aab" | head -n 1)
+
+          if [ -z "$AAB" ]; then
+            echo "ERROR: AAB was not generated."
+            exit 1
+          fi
+
+          echo "AAB generated successfully:"
+          ls -lh "$AAB"
+
+          cp "$AAB" forsati-release.aab
+
+      - name: Upload Google Play AAB
         uses: actions/upload-artifact@v4
         with:
-          name: forsati-release-apk
-          path: android/app/build/outputs/apk/**/*.apk
+          name: forsati-release-aab
+          path: forsati-release.aab
           if-no-files-found: error
