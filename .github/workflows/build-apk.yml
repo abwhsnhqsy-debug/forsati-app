@@ -86,7 +86,7 @@ jobs:
           fi
 
           cat > android/keystore.properties <<EOF
-          storeFile=forsati-release-key.jks
+          storeFile=../forsati-release-key.jks
           storePassword=$KEYSTORE_PASSWORD
           keyAlias=$KEY_ALIAS
           keyPassword=$KEY_PASSWORD
