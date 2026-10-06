@@ -16,7 +16,6 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: package.json
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -29,6 +28,11 @@ jobs:
 
       - name: Install dependencies
         run: npm install --no-audit --no-fund
+
+      - name: Prepare web assets
+        run: |
+          mkdir -p www
+          cp index.html www/index.html
 
       - name: Check environment
         run: |
@@ -48,7 +52,7 @@ jobs:
 
       - name: Build debug APK
         working-directory: android
-        run: ./gradlew assembleDebug --no-daemon --stacktrace
+        run: ./gradlew assembleDebug --no-daemon
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
