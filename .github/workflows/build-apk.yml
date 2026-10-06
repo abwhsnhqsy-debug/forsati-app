@@ -55,21 +55,15 @@ jobs:
             echo "ERROR: FORSATI_KEYSTORE_BASE64 is missing."
             exit 1
           fi
-          echo "$KEYSTORE_BASE64" | base64 --decode > android/forsati-release-key.jks
-          test -s android/forsati-release-key.jks
 
-      - name: Validate release keystore
-        env:
-          KEYSTORE_PASSWORD: ${{ secrets.FORSATI_KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.FORSATI_KEY_ALIAS }}
-        run: |
-          if [ -z "$KEYSTORE_PASSWORD" ] || [ -z "$KEY_ALIAS" ]; then
-            echo "ERROR: Keystore secrets are missing."
+          echo "$KEYSTORE_BASE64" | base64 --decode > android/forsati-release-key.jks
+
+          if [ ! -s android/forsati-release-key.jks ]; then
+            echo "ERROR: Keystore was not created."
             exit 1
           fi
-          echo "Checking keystore..."
-          keytool -list -keystore android/forsati-release-key.jks -storepass "$KEYSTORE_PASSWORD" -alias "$KEY_ALIAS" >/dev/null
-          echo "Keystore validation: PASSED"
+
+          echo "Release keystore file created."
 
       - name: Create keystore properties
         env:
@@ -77,42 +71,68 @@ jobs:
           KEY_ALIAS: ${{ secrets.FORSATI_KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.FORSATI_KEY_PASSWORD }}
         run: |
-          if [ -z "$KEYSTORE_PASSWORD" ] || [ -z "$KEY_ALIAS" ] || [ -z "$KEY_PASSWORD" ]; then
-            echo "ERROR: One or more signing secrets are missing."
+          if [ -z "$KEYSTORE_PASSWORD" ]; then
+            echo "ERROR: FORSATI_KEYSTORE_PASSWORD is missing."
             exit 1
           fi
-          cat > android/keystore.properties <<EOF2
+          if [ -z "$KEY_ALIAS" ]; then
+            echo "ERROR: FORSATI_KEY_ALIAS is missing."
+            exit 1
+          fi
+          if [ -z "$KEY_PASSWORD" ]; then
+            echo "ERROR: FORSATI_KEY_PASSWORD is missing."
+            exit 1
+          fi
+
+          cat > android/keystore.properties <<EOF
           storeFile=../forsati-release-key.jks
           storePassword=$KEYSTORE_PASSWORD
           keyAlias=$KEY_ALIAS
           keyPassword=$KEY_PASSWORD
-          EOF2
+          EOF
+
+          echo "Keystore properties created."
 
       - name: Configure release signing
         working-directory: android
         run: |
           python3 - <<'PY'
           from pathlib import Path
+
           path = Path("app/build.gradle")
           text = path.read_text()
+
           if "signingConfigs" not in text:
-              block = '''signingConfigs {
+              signing_block = """signingConfigs {
               release {
                   def keystorePropertiesFile = rootProject.file("keystore.properties")
                   def keystoreProperties = new Properties()
+
                   if (keystorePropertiesFile.exists()) {
                       keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
                   }
+
                   storeFile file(keystoreProperties["storeFile"])
                   storePassword keystoreProperties["storePassword"]
                   keyAlias keystoreProperties["keyAlias"]
                   keyPassword keystoreProperties["keyPassword"]
               }
           }
-          '''
-              text = text.replace("android {", "android {\n" + block, 1)
+
+          """
+              text = text.replace("android {", "android {\n" + signing_block, 1)
+
           if "signingConfig signingConfigs.release" not in text:
-              text = text.replace("buildTypes {", "buildTypes {\n        release {\n            signingConfig signingConfigs.release\n        }", 1)
+              text = text.replace(
+                  "buildTypes {",
+                  """buildTypes {
+              release {
+                  signingConfig signingConfigs.release
+              }
+              """,
+                  1
+              )
+
           path.write_text(text)
           PY
 
@@ -121,15 +141,19 @@ jobs:
 
       - name: Build Google Play AAB
         working-directory: android
-        run: ./gradlew bundleRelease --no-daemon
+        run: |
+          ./gradlew bundleRelease --no-daemon --stacktrace
 
       - name: Verify AAB
         run: |
           AAB=$(find android/app/build/outputs/bundle -type f -name "*.aab" | head -n 1)
+
           if [ -z "$AAB" ]; then
             echo "ERROR: AAB was not generated."
             exit 1
           fi
+
+          echo "AAB generated successfully:"
           ls -lh "$AAB"
           cp "$AAB" forsati-release.aab
 
