@@ -46,12 +46,22 @@ jobs:
 
       - name: Verify Application ID
         run: |
-          grep -R "com.forsati.app" android/app/build.gradle android/gradle.properties android/variables.gradle 2>/dev/null || true
+          grep -R "com.forsati.app" \
+            android/app/build.gradle \
+            android/gradle.properties \
+            android/variables.gradle \
+            2>/dev/null || true
+
+      # ----------------------------------------
+      # CREATE RELEASE KEYSTORE
+      # ----------------------------------------
 
       - name: Create release keystore
         env:
           KEYSTORE_BASE64: ${{ secrets.FORSATI_KEYSTORE_BASE64 }}
         run: |
+          set -e
+
           if [ -z "$KEYSTORE_BASE64" ]; then
             echo "ERROR: FORSATI_KEYSTORE_BASE64 is missing."
             exit 1
@@ -60,16 +70,24 @@ jobs:
           echo "$KEYSTORE_BASE64" | base64 --decode > android/forsati-release-key.jks
 
           if [ ! -s android/forsati-release-key.jks ]; then
-            echo "ERROR: Keystore was not created."
+            echo "ERROR: Keystore file was not created."
             exit 1
           fi
 
-      - name: Create keystore properties
+          echo "Keystore file created successfully."
+
+      # ----------------------------------------
+      # VALIDATE ALL SIGNING SECRETS
+      # ----------------------------------------
+
+      - name: Validate release keystore
         env:
           KEYSTORE_PASSWORD: ${{ secrets.FORSATI_KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.FORSATI_KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.FORSATI_KEY_PASSWORD }}
         run: |
+          set -e
+
           if [ -z "$KEYSTORE_PASSWORD" ]; then
             echo "ERROR: FORSATI_KEYSTORE_PASSWORD is missing."
             exit 1
@@ -85,12 +103,86 @@ jobs:
             exit 1
           fi
 
+          echo "Checking keystore..."
+
+          keytool -list \
+            -keystore android/forsati-release-key.jks \
+            -storepass "$KEYSTORE_PASSWORD" \
+            >/dev/null
+
+          echo "Keystore password: OK"
+
+          keytool -list \
+            -keystore android/forsati-release-key.jks \
+            -storepass "$KEYSTORE_PASSWORD" \
+            -alias "$KEY_ALIAS" \
+            >/dev/null
+
+          echo "Alias: OK"
+
+          cat > /tmp/ValidateKey.java <<'JAVA'
+          import java.io.FileInputStream;
+          import java.security.Key;
+          import java.security.KeyStore;
+
+          public class ValidateKey {
+              public static void main(String[] args) throws Exception {
+                  String file = args[0];
+                  String storePassword = args[1];
+                  String alias = args[2];
+                  String keyPassword = args[3];
+
+                  KeyStore ks = KeyStore.getInstance("PKCS12");
+
+                  try (FileInputStream in = new FileInputStream(file)) {
+                      ks.load(in, storePassword.toCharArray());
+                  }
+
+                  Key key = ks.getKey(alias, keyPassword.toCharArray());
+
+                  if (key == null) {
+                      throw new Exception("Private key could not be loaded.");
+                  }
+
+                  System.out.println("Private key password: OK");
+                  System.out.println("Keystore validation: PASSED");
+              }
+          }
+          JAVA
+
+          javac /tmp/ValidateKey.java
+
+          java -cp /tmp ValidateKey \
+            android/forsati-release-key.jks \
+            "$KEYSTORE_PASSWORD" \
+            "$KEY_ALIAS" \
+            "$KEY_PASSWORD"
+
+      # ----------------------------------------
+      # CREATE GRADLE SIGNING PROPERTIES
+      # ----------------------------------------
+
+      - name: Create keystore properties
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.FORSATI_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.FORSATI_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.FORSATI_KEY_PASSWORD }}
+        run: |
+          set -e
+
           cat > android/keystore.properties <<EOF
           storeFile=../forsati-release-key.jks
+          storeType=PKCS12
           storePassword=$KEYSTORE_PASSWORD
           keyAlias=$KEY_ALIAS
           keyPassword=$KEY_PASSWORD
           EOF
+
+          echo "Keystore properties created."
+
+      # ----------------------------------------
+      # CONFIGURE GRADLE SIGNING
+      # ----------------------------------------
 
       - name: Configure release signing
         working-directory: android
@@ -141,6 +233,10 @@ jobs:
           path.write_text(text)
           PY
 
+      # ----------------------------------------
+      # BUILD GOOGLE PLAY AAB
+      # ----------------------------------------
+
       - name: Make Gradle executable
         run: chmod +x android/gradlew
 
@@ -149,11 +245,20 @@ jobs:
         run: |
           ./gradlew bundleRelease --no-daemon
 
+      # ----------------------------------------
+      # VERIFY AAB
+      # ----------------------------------------
+
       - name: Verify AAB
         run: |
+          set -e
+
           echo "Searching for generated AAB..."
 
-          AAB=$(find android/app/build/outputs/bundle -type f -name "*.aab" | head -n 1)
+          AAB=$(find android/app/build/outputs/bundle \
+            -type f \
+            -name "*.aab" \
+            | head -n 1)
 
           if [ -z "$AAB" ]; then
             echo "ERROR: AAB was not generated."
@@ -164,6 +269,10 @@ jobs:
           ls -lh "$AAB"
 
           cp "$AAB" forsati-release.aab
+
+      # ----------------------------------------
+      # UPLOAD AAB
+      # ----------------------------------------
 
       - name: Upload Google Play AAB
         uses: actions/upload-artifact@v4
