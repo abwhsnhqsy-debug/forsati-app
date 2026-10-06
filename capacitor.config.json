@@ -1,6 +1,6 @@
 {
   "appId":"com.forsati.app",
   "appName":"فرصتي",
-  "webDir": ".",
+  "webDir": "www",
   "server":{"androidScheme":"https"}
 }
